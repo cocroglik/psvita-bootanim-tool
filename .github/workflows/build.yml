@@ -16,23 +16,50 @@ jobs:
     container:
       image: vitasdk/vitasdk:latest
 
+    defaults:
+      run:
+        working-directory: vita-bootinstaller
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build and package bootinstaller
-      working-directory: vita-bootinstaller
+    - name: Build ELF
       run: |
         mkdir -p build
         cd build
         cmake .. -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
         make -j$(nproc)
-        cmake --install . --prefix="$(pwd)/out"
-        vita-makepkg -s -f out/
+
+    - name: Create SELF
+      working-directory: vita-bootinstaller/build
+      run: |
+        $VITASDK/bin/vita-elf-create bootinstaller.elf eboot.bin
+
+    - name: Create param.sfo
+      working-directory: vita-bootinstaller/build
+      run: |
+        $VITASDK/bin/vita-mksfoex \
+          -s TITLE_ID=BOTINST01 \
+          -s TITLE="Boot Anim Installer" \
+          -s APP_VER=01.00 \
+          -s VERSION=01.00 \
+          param.sfo
+
+    - name: Package VPK
+      working-directory: vita-bootinstaller/build
+      run: |
+        mkdir -p vpk/sce_sys
+        cp eboot.bin vpk/
+        cp ../sce_sys/icon0.png vpk/sce_sys/
+        cp ../sce_sys/pic0.png vpk/sce_sys/ 2>/dev/null || true
+        cp -r ../sce_sys/livearea vpk/sce_sys/ 2>/dev/null || true
+        cp param.sfo vpk/sce_sys/
+        $VITASDK/bin/vita-pack-vpk vpk/ bootinstaller.vpk
 
     - name: Upload VPK artifact
       uses: actions/upload-artifact@v4
       with:
         name: bootinstaller-vpk
-        path: vita-bootinstaller/build/out/*.vpk
+        path: vita-bootinstaller/build/bootinstaller.vpk
         compression-level: 0
