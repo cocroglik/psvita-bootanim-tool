@@ -147,8 +147,6 @@ static void draw_menu(void) {
     if (font) {
         vita2d_font_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "PS Vita Boot Anim Installer");
         vita2d_font_draw_text(font, 20, 90, RGBA8(200, 200, 200, 255), 18, "D-Pad: Navegar  X: Seleccionar  O: Volver");
-    } else {
-        vita2d_draw_text(20, 40, RGBA8(255, 255, 255, 255), 28, "PS Vita Boot Anim Installer");
     }
     // File list
     int y_start = 110;
@@ -173,14 +171,14 @@ static void draw_menu(void) {
         if (font)
             vita2d_font_draw_text(font, 20, y, color, 18, line);
         else
-            vita2d_draw_text(20, y, color, 18, line);
+            vita2d_font_draw_text(font, 20, y, color, 18, line);
     }
     // Status bar
     vita2d_draw_rectangle(0, 544 - 30, 960, 30, RGBA8(10, 10, 10, 200));
     if (font)
         vita2d_font_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
     else
-        vita2d_draw_text(20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
+        vita2d_font_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
     vita2d_end_drawing();
     vita2d_swap_buffers();
 }
@@ -248,9 +246,9 @@ int main(int argc, char *argv[]) {
     sceSysmoduleLoadModule(SCE_SYSMODULE_APPUTIL);
     vita2d_init();
     vita2d_set_clear_color(RGBA8(15, 15, 25, 255));
-    font = vita2d_load_default_font();
+    font = vita2d_load_default_pvf();
     if (!font) {
-        // fallback: no font, use vita2d_draw_text
+        font = vita2d_load_default_pvf();
     }
     scan_files();
     log_msg("Usa D-Pad para navegar, X para instalar");
