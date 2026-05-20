@@ -1,0 +1,43 @@
+name: Build VPK
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'vita-bootinstaller/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: vitasdk/vitasdk:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build bootinstaller
+      working-directory: vita-bootinstaller
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake
+        make -j$(nproc)
+        # Package VPK
+        make install DESTDIR=./out 2>/dev/null || true
+        mkdir -p out/sce_sys
+        cp ../sce_sys/icon0.png out/sce_sys/
+        cp ../sce_sys/pic0.png out/sce_sys/ 2>/dev/null || true
+        cp -r ../sce_sys/livearea out/sce_sys/ 2>/dev/null || true
+        vita-makepkg -s -f out/
+
+    - name: Upload VPK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: bootinstaller-vpk
+        path: vita-bootinstaller/build/out/*.vpk
+        compression-level: 0

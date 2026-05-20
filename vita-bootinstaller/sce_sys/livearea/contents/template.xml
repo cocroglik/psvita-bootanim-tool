@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<livearea style="a1" format="manual" xmlns="http://www.sceee.com/PSP2/livearea">
+    <livearea-background>
+        <image>bg0.png</image>
+    </livearea-background>
+    <gate>
+        <start>0000/01/01 00:00:00</start>
+        <end>9999/12/31 23:59:59</end>
+        <title>
+            <iso>
+                <lang>en</lang>
+                <title>Boot Anim Installer</title>
+            </iso>
+        </title>
+        <npid>
+            <iso>
+                <lang>en</lang>
+                <title>BOTINST01</title>
+            </iso>
+        </npid>
+        <icon>icon0.png</icon>
+    </gate>
+</livearea>

@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Web (navegador)",
+            "type": "python",
+            "request": "launch",
+            "module": "app",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": { "PYTHONUNBUFFERED": "1" },
+            "args": ["--browser"]
+        },
+        {
+            "name": "Escritorio (tkinter)",
+            "type": "python",
+            "request": "launch",
+            "module": "app",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": { "PYTHONUNBUFFERED": "1" },
+            "args": ["--desktop"]
+        }
+    ]
+}
