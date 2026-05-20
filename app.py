@@ -29,6 +29,8 @@ import webbrowser
 import uuid
 import mimetypes
 import time
+import ftplib
+import socket
 from pathlib import Path
 
 try:
@@ -860,6 +862,10 @@ class WebUIHandler(http.server.BaseHTTPRequestHandler):
             return self._json({"upload_id": uid})
         if p == "/api/convert":
             return self._handle_convert()
+        if p == "/api/ftp-upload":
+            return self._handle_ftp_upload()
+        if p == "/api/ftp-scan":
+            return self._handle_ftp_scan()
         self._json({"error": "Not found"}, 404)
 
     def do_PUT(self):
@@ -959,6 +965,60 @@ class WebUIHandler(http.server.BaseHTTPRequestHandler):
         else:
             self._json({"error": "Ejemplo no encontrado"}, 404)
 
+    def _handle_ftp_upload(self):
+        try:
+            data = json.loads(self._body().decode("utf-8"))
+        except Exception as e:
+            return self._json({"error": f"JSON invalido: {e}"}, 400)
+        file_path = data.get("file_path")
+        ip = data.get("ip", "192.168.1.100")
+        port = int(data.get("port", 1337))
+        target = data.get("target", "enso")
+        # Resolver ruta virtual
+        if file_path == "/api/download-rcf":
+            file_path = os.path.join(OUTPUT_DIR, "boot.rcf")
+        elif file_path == "/api/download-cbs":
+            file_path = os.path.join(OUTPUT_DIR, "boot_animation.img")
+        if not file_path or not os.path.exists(file_path):
+            return self._json({"error": "Archivo no encontrado. Convierte una animacion primero."}, 400)
+        try:
+            _ftp_upload_file(file_path, ip, port, target)
+            self._json({"ok": True})
+        except Exception as e:
+            self._json({"error": str(e)}, 500)
+
+    def _handle_ftp_scan(self):
+        found = []
+        local_ip = "127.0.0.1"
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(1)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            base = ".".join(local_ip.split(".")[:3])
+            lock = threading.Lock()
+            def scan(ip):
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.3)
+                    if s.connect_ex((ip, 1337)) == 0:
+                        with lock:
+                            found.append(ip)
+                    s.close()
+                except:
+                    pass
+            threads = []
+            for i in range(1, 255):
+                t = threading.Thread(target=scan, args=(f"{base}.{i}",), daemon=True)
+                t.start()
+                threads.append(t)
+            for t in threads:
+                t.join(timeout=3)
+        except Exception as e:
+            pass
+        self._json({"ips": found, "local_ip": local_ip})
+
 
 def _bg_convert(video_path, opts):
     global job
@@ -986,6 +1046,38 @@ def _bg_convert(video_path, opts):
                 os.unlink(video_path)
         except Exception:
             pass
+
+
+# ─── Subida FTP a PS Vita ────────────────────────────────────────────────
+
+def _ftp_upload_file(file_path, ip, port, target):
+    ftp = ftplib.FTP()
+    ftp.connect(ip, port, timeout=10)
+    ftp.login("anonymous", "")
+    if target == "enso":
+        ftp.cwd("/")
+        try:
+            ftp.cwd("ur0:/tai")
+        except Exception:
+            try:
+                ftp.cwd("ur0/tai")
+            except Exception:
+                ftp.cwd("/")
+                ftp.cwd("tai")
+        dest_name = "boot_splash.rcf"
+    else:
+        try:
+            ftp.cwd("ux0:/data/PSP2CBS")
+        except Exception:
+            try:
+                ftp.cwd("data/PSP2CBS")
+            except Exception:
+                ftp.cwd("/")
+                ftp.cwd("PSP2CBS")
+        dest_name = "custom1.cbs"
+    with open(file_path, "rb") as f:
+        ftp.storbinary(f"STOR {dest_name}", f)
+    ftp.quit()
 
 
 # ─── Interfaz de escritorio (tkinter) ────────────────────────────────────
@@ -1449,6 +1541,35 @@ HTML_UI = r"""<!DOCTYPE html>
       </div>
     </div>
   </div>
+
+  <div class="card">
+    <div class="card-title">Subir a PS Vita (FTP)</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>IP de la Vita</label>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="vitaIp" class="input" value="192.168.1.100" placeholder="192.168.1.100" style="flex:1;">
+          <button class="btn btn-outline btn-sm" onclick="scanVita()" title="Escanear red local">🔍</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Puerto FTP</label>
+        <input type="number" id="vitaPort" class="input" value="1337">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Destino</label>
+      <select id="vitaTarget" class="input">
+        <option value="enso">Enso Ex (ur0:tai/boot_splash.rcf)</option>
+        <option value="cbs">CBS Manager (ux0:data/PSP2CBS/custom1.cbs)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-primary" onclick="uploadToVita()">Subir a PS Vita</button>
+      <span id="ftpStatus" style="font-size:12px;color:var(--text-dim);margin-left:8px;"></span>
+    </div>
+  </div>
+
 </div>
 <script>
 let selectedFile = null, logoFile = null, pollInterval = null, uploadId = null, videoPath = null, hasFfmpeg = false;
@@ -1597,6 +1718,56 @@ function logMsg(m,t) { let lb=document.getElementById("logBox"),c=t==="error"?"l
 function escHtml(s) { let d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 function clearLog() { document.getElementById("logBox").innerHTML='<span class="log-info">Log limpiado.</span>'; document.getElementById("resultBox").classList.remove("show"); document.getElementById("progressBar").classList.remove("active"); }
 function openOutput() { window.open("/api/download-rcf"); }
+
+async function scanVita() {
+  const btn = event.target; btn.disabled = true; btn.textContent = "...";
+  document.getElementById("ftpStatus").textContent = "Escaneando red...";
+  try {
+    let r = await fetch("/api/ftp-scan", {method:"POST"});
+    let d = await r.json();
+    if (d.ips && d.ips.length > 0) {
+      document.getElementById("vitaIp").value = d.ips[0];
+      document.getElementById("ftpStatus").textContent = "Vita encontrada: " + d.ips.join(", ");
+    } else {
+      document.getElementById("ftpStatus").textContent = "No se encontraron Vitas en " + d.local_ip + "/24";
+    }
+  } catch(e) {
+    document.getElementById("ftpStatus").textContent = "Error: " + e.message;
+  }
+  btn.disabled = false; btn.textContent = "🔍";
+}
+
+async function uploadToVita() {
+  const ip = document.getElementById("vitaIp").value.trim();
+  const port = document.getElementById("vitaPort").value;
+  const target = document.getElementById("vitaTarget").value;
+  const ext = target === "enso" ? "rcf" : "cbs";
+  const statusEl = document.getElementById("ftpStatus");
+  statusEl.textContent = "Subiendo...";
+  try {
+    let r = await fetch("/api/ftp-upload", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        file_path: "/api/download-" + ext,
+        ip: ip,
+        port: parseInt(port),
+        target: target
+      })
+    });
+    let d = await r.json();
+    if (d.ok) {
+      statusEl.textContent = "LISTO! Archivo subido a la Vita";
+      logMsg("Animacion instalada en la Vita via FTP");
+    } else {
+      statusEl.textContent = "Error: " + d.error;
+      logMsg("Error FTP: " + d.error, "error");
+    }
+  } catch(e) {
+    statusEl.textContent = "Error: " + e.message;
+    logMsg("Error FTP: " + e.message, "error");
+  }
+}
 </script>
 </body>
 </html>
