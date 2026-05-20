@@ -50,7 +50,7 @@ static int install_mode = 0; // 0=menu, 1=confirm, 2=installing, 3=done, 4=error
 static int install_target = 0; // 0=Enso Ex (RCF), 1=CBS Manager
 static int menu_page = 0; // 0=file list, 1=select target
 static char status_text[256];
-static vita2d_font *font = NULL;
+static vita2d_pvf *font = NULL;
 
 static void log_msg(const char *fmt, ...) {
     va_list args;
@@ -145,8 +145,8 @@ static void draw_menu(void) {
     vita2d_clear_screen();
     vita2d_draw_rectangle(0, 0, 960, 60, RGBA8(20, 80, 160, 255));
     if (font) {
-        vita2d_font_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "PS Vita Boot Anim Installer");
-        vita2d_font_draw_text(font, 20, 90, RGBA8(200, 200, 200, 255), 18, "D-Pad: Navegar  X: Seleccionar  O: Volver");
+        vita2d_pvf_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "PS Vita Boot Anim Installer");
+        vita2d_pvf_draw_text(font, 20, 90, RGBA8(200, 200, 200, 255), 18, "D-Pad: Navegar  X: Seleccionar  O: Volver");
     }
     // File list
     int y_start = 110;
@@ -169,16 +169,16 @@ static void draw_menu(void) {
         char line[MAX_NAME + 16];
         snprintf(line, sizeof(line), "[%s] %s", tag, entries[i].name);
         if (font)
-            vita2d_font_draw_text(font, 20, y, color, 18, line);
+            vita2d_pvf_draw_text(font, 20, y, color, 18, line);
         else
-            vita2d_font_draw_text(font, 20, y, color, 18, line);
+            vita2d_pvf_draw_text(font, 20, y, color, 18, line);
     }
     // Status bar
     vita2d_draw_rectangle(0, 544 - 30, 960, 30, RGBA8(10, 10, 10, 200));
     if (font)
-        vita2d_font_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
+        vita2d_pvf_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
     else
-        vita2d_font_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
+        vita2d_pvf_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
     vita2d_end_drawing();
     vita2d_swap_buffers();
 }
@@ -189,7 +189,7 @@ static void draw_confirm(void) {
     // Title
     vita2d_draw_rectangle(0, 0, 960, 60, RGBA8(20, 80, 160, 255));
     if (font) {
-        vita2d_font_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Confirmar instalacion");
+        vita2d_pvf_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Confirmar instalacion");
     }
     // Panel de confirmacion
     vita2d_draw_rectangle(80, 120, 800, 300, RGBA8(30, 30, 50, 240));
@@ -197,19 +197,19 @@ static void draw_confirm(void) {
     char line1[MAX_PATH + 32];
     snprintf(line1, sizeof(line1), "Archivo: %s", entries[cursor].name);
     if (font)
-        vita2d_font_draw_text(font, 120, 170, RGBA8(255, 255, 255, 255), 22, line1);
+        vita2d_pvf_draw_text(font, 120, 170, RGBA8(255, 255, 255, 255), 22, line1);
     // Destino
     const char *target_name = install_target == 0 ? "Enso Ex (ur0:tai/boot_splash.rcf)" : "CBS Manager (ux0:data/PSP2CBS/custom1.cbs)";
     if (font)
-        vita2d_font_draw_text(font, 120, 210, RGBA8(200, 200, 200, 255), 18, target_name);
+        vita2d_pvf_draw_text(font, 120, 210, RGBA8(200, 200, 200, 255), 18, target_name);
     // Opciones
     if (font) {
-        vita2d_font_draw_text(font, 200, 280, RGBA8(100, 255, 100, 255), 22, "X = Instalar");
-        vita2d_font_draw_text(font, 200, 320, RGBA8(255, 150, 150, 255), 22, "O = Cancelar");
+        vita2d_pvf_draw_text(font, 200, 280, RGBA8(100, 255, 100, 255), 22, "X = Instalar");
+        vita2d_pvf_draw_text(font, 200, 320, RGBA8(255, 150, 150, 255), 22, "O = Cancelar");
     }
     vita2d_draw_rectangle(0, 544 - 30, 960, 30, RGBA8(10, 10, 10, 200));
     if (font)
-        vita2d_font_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
+        vita2d_pvf_draw_text(font, 20, 544 - 22, RGBA8(150, 200, 255, 255), 16, status_text);
     vita2d_end_drawing();
     vita2d_swap_buffers();
 }
@@ -219,10 +219,10 @@ static void draw_done(void) {
     vita2d_clear_screen();
     vita2d_draw_rectangle(0, 0, 960, 60, RGBA8(20, 160, 80, 255));
     if (font) {
-        vita2d_font_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Instalacion completa");
-        vita2d_font_draw_text(font, 80, 200, RGBA8(200, 255, 200, 255), 24, status_text);
-        vita2d_font_draw_text(font, 200, 300, RGBA8(255, 255, 255, 255), 20, "PS button para reiniciar");
-        vita2d_font_draw_text(font, 220, 340, RGBA8(200, 200, 200, 255), 18, "O = Volver al menu");
+        vita2d_pvf_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Instalacion completa");
+        vita2d_pvf_draw_text(font, 80, 200, RGBA8(200, 255, 200, 255), 24, status_text);
+        vita2d_pvf_draw_text(font, 200, 300, RGBA8(255, 255, 255, 255), 20, "PS button para reiniciar");
+        vita2d_pvf_draw_text(font, 220, 340, RGBA8(200, 200, 200, 255), 18, "O = Volver al menu");
     }
     vita2d_end_drawing();
     vita2d_swap_buffers();
@@ -233,9 +233,9 @@ static void draw_error(void) {
     vita2d_clear_screen();
     vita2d_draw_rectangle(0, 0, 960, 60, RGBA8(160, 20, 20, 255));
     if (font) {
-        vita2d_font_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Error de instalacion");
-        vita2d_font_draw_text(font, 80, 200, RGBA8(255, 180, 180, 255), 22, status_text);
-        vita2d_font_draw_text(font, 220, 340, RGBA8(200, 200, 200, 255), 18, "O = Volver al menu");
+        vita2d_pvf_draw_text(font, 20, 40, RGBA8(255, 255, 255, 255), 28, "Error de instalacion");
+        vita2d_pvf_draw_text(font, 80, 200, RGBA8(255, 180, 180, 255), 22, status_text);
+        vita2d_pvf_draw_text(font, 220, 340, RGBA8(200, 200, 200, 255), 18, "O = Volver al menu");
     }
     vita2d_end_drawing();
     vita2d_swap_buffers();
