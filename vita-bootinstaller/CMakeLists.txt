@@ -10,14 +10,6 @@ add_executable(${PROJECT_NAME}.elf
 
 target_link_libraries(${PROJECT_NAME}.elf
     vita2d
-    psp2_types
-    psp2_kernel
-    psp2_io
-    psp2_ctrl
-    psp2_display
-    psp2_power
-    psp2_sysmodule
-    psp2_apputil
     SceLibKernel_stub
     SceLibc_stub
     SceIofilemgr_stub
@@ -25,4 +17,5 @@ target_link_libraries(${PROJECT_NAME}.elf
     ScePower_stub
     SceSysmodule_stub
     SceAppUtil_stub
+    SceDisplay_stub
 )
